@@ -112,8 +112,8 @@ import axios from "axios";
 import Dashboard from "./Dashboard";
 import theme from "./theme";
 
-// Set axios base URL
-axios.defaults.baseURL = 'http://localhost:5000';
+// Set axios base URL (use env var `VITE_API_URL` or fallback to Render backend)
+axios.defaults.baseURL = import.meta.env.VITE_API_URL || 'https://majorproject-itcj.onrender.com';
 
 const steps = ["Advanced Face Recognition", "Multi-Algorithm Fingerprint", "Dual Biometric Fusion"];
 const MAX_FACE_IMAGES = 5;

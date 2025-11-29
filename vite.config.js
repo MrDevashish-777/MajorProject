@@ -6,8 +6,8 @@ export default defineConfig({
   server: {
     port: 3000,
     proxy: {
-      '/api': 'http://localhost:5000',
-      '/uploads': 'http://localhost:5000',
+      '/api': 'https://majorproject-itcj.onrender.com',
+      '/uploads': 'https://majorproject-itcj.onrender.com',
     },
   },
   build: {
