@@ -18,7 +18,7 @@ keras==2.13.1
 
 # CV + ML
 opencv-python
-numpy>=1.26,<2.0
+numpy>=1.23,<1.25
 pandas==2.3.1
 scipy==1.15.3
 scikit-learn==1.7.0
@@ -84,4 +84,4 @@ rich==13.9.4
 lz4==4.4.4
 networkx==3.4.2
 tifffile==2025.5.10
-pillow   # removed broken pin (11.3 fails on Linux cp310 wheels)
+pillow

@@ -38,7 +38,8 @@ try:
     from biometrics.face import find_most_similar
     from biometrics.fingerprint import compare_fingerprints
 except (ImportError, AttributeError) as e:
-    print(f"Warning: Could not import biometric modules: {e}")
+    print("Warning: Could not import biometric modules: {}".format(e))
+
     # Fallback functions for testing
     def find_most_similar(*args, **kwargs):
         return {'Confidence (%)': 85.0}, None
