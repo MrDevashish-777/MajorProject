@@ -1,0 +1,39 @@
+2025-10-10 00:57:20,974 - __main__ - INFO - Database initialized successfully
+2025-10-10 00:57:20,976 - __main__ - INFO - Enhanced Biometric Authentication System starting...
+2025-10-10 00:57:20,984 - __main__ - INFO - Security event: SYSTEM_STARTUP - User: None - IP: system
+2025-10-10 00:57:21,072 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.31.101:5000
+2025-10-10 00:57:21,072 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-10-10 00:57:21,076 - werkzeug - INFO -  * Restarting with stat
+2025-10-10 00:57:32,800 - __main__ - INFO - Database initialized successfully
+2025-10-10 00:57:32,810 - __main__ - INFO - Enhanced Biometric Authentication System starting...
+2025-10-10 00:57:32,817 - __main__ - INFO - Security event: SYSTEM_STARTUP - User: None - IP: system
+2025-10-10 00:57:32,847 - werkzeug - WARNING -  * Debugger is active!
+2025-10-10 00:57:32,866 - werkzeug - INFO -  * Debugger PIN: 502-675-790
+2025-10-10 00:57:58,185 - werkzeug - INFO -  * Detected change in 'C:\\xampp\\htdocs\\college project face fingerprint\\webapp\\test_backdoor.py', reloading
+2025-10-10 00:57:59,208 - werkzeug - INFO -  * Restarting with stat
+2025-10-10 00:58:11,612 - __main__ - INFO - Database initialized successfully
+2025-10-10 00:58:11,613 - __main__ - INFO - Enhanced Biometric Authentication System starting...
+2025-10-10 00:58:11,629 - __main__ - INFO - Security event: SYSTEM_STARTUP - User: None - IP: system
+2025-10-10 00:58:11,662 - werkzeug - WARNING -  * Debugger is active!
+2025-10-10 00:58:11,678 - werkzeug - INFO -  * Debugger PIN: 502-675-790
+2025-10-10 00:58:29,157 - werkzeug - INFO -  * Detected change in 'C:\\xampp\\htdocs\\college project face fingerprint\\webapp\\test_backdoor.py', reloading
+2025-10-10 00:58:30,073 - werkzeug - INFO -  * Restarting with stat
+2025-10-10 00:58:41,450 - __main__ - INFO - Database initialized successfully
+2025-10-10 00:58:41,451 - __main__ - INFO - Enhanced Biometric Authentication System starting...
+2025-10-10 00:58:41,467 - __main__ - INFO - Security event: SYSTEM_STARTUP - User: None - IP: system
+2025-10-10 00:58:41,494 - werkzeug - WARNING -  * Debugger is active!
+2025-10-10 00:58:41,510 - werkzeug - INFO -  * Debugger PIN: 502-675-790
+2025-10-10 01:05:26,933 - werkzeug - INFO -  * Detected change in 'C:\\xampp\\htdocs\\college project face fingerprint\\webapp\\debug_login.py', reloading
+2025-10-10 01:05:27,903 - werkzeug - INFO -  * Restarting with stat
+2025-10-10 01:05:40,568 - __main__ - INFO - Database initialized successfully
+2025-10-10 01:05:40,569 - __main__ - INFO - Enhanced Biometric Authentication System starting...
+2025-10-10 01:05:40,585 - __main__ - INFO - Security event: SYSTEM_STARTUP - User: None - IP: system
+2025-10-10 01:05:40,611 - werkzeug - WARNING -  * Debugger is active!
+2025-10-10 01:05:40,630 - werkzeug - INFO -  * Debugger PIN: 502-675-790
+2025-10-10 01:57:20,978 - __main__ - INFO - Expired sessions cleaned up
+2025-10-10 01:57:20,979 - __main__ - INFO - Old temporary files cleaned up
+2025-10-10 02:05:40,572 - __main__ - INFO - Expired sessions cleaned up
+2025-10-10 02:05:40,572 - __main__ - INFO - Old temporary files cleaned up
