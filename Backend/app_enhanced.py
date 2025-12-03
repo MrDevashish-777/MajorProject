@@ -239,8 +239,8 @@ def init_database():
             email TEXT,
             phone_number TEXT,
             password_hash TEXT,
-            face_images TEXT NOT NULL,
-            fingerprint_image BYTEA NOT NULL,
+            face_paths TEXT NOT NULL,
+            fp_path TEXT NOT NULL,
             security_level TEXT DEFAULT 'MEDIUM',
             device_fingerprint TEXT,
             registration_location TEXT,
@@ -606,23 +606,35 @@ def register():
 
             return jsonify({'error': client_msg}), 409
         
-        # Read and encode face images to base64
-        face_data_list = []
+        # Save face images with quality assessment
+        face_paths = []
         face_qualities = []
         for idx, face_file in enumerate(face_files):
-            face_bytes = face_file.read()
-            face_b64 = base64.b64encode(face_bytes).decode('utf-8')
-            face_data_list.append(face_b64)
+            face_filename = secure_filename(f"{username}_face_{idx}_{int(time.time())}.{face_file.filename.rsplit('.', 1)[1]}")
+            face_path = os.path.join(UPLOAD_FOLDER, face_filename)
+            face_file.save(face_path)
             
-            # Calculate quality from bytes
-            quality = 0.8 + (len(face_bytes) / 1000000) * 0.15
-            face_qualities.append(min(0.95, quality))
+            # Calculate quality
+            quality = calculate_biometric_quality(face_path, 'face')
+            face_qualities.append(quality)
+            face_paths.append(face_path)
+            
+            # Optionally encrypt file (disabled in development for matching)
+            if os.environ.get('ENCRYPT_BIOMETRICS', '0') in ('1', 'true', 'True'):
+                encryption_key = hashlib.sha256(f"{username}:{idx}".encode()).hexdigest()[:32]
+                encrypt_file(face_path, encryption_key)
         
-        # Read and encode fingerprint to base64
-        fp_bytes = fingerprint.read()
-        fp_b64 = base64.b64encode(fp_bytes).decode('utf-8')
-        fp_quality = 0.8 + (len(fp_bytes) / 500000) * 0.15
-        fp_quality = min(0.98, fp_quality)
+        # Save fingerprint with quality assessment
+        fp_filename = secure_filename(f"{username}_fp_{int(time.time())}.{fingerprint.filename.rsplit('.', 1)[1]}")
+        fp_path = os.path.join(UPLOAD_FOLDER, fp_filename)
+        fingerprint.save(fp_path)
+
+        fp_quality = calculate_biometric_quality(fp_path, 'fingerprint')
+
+        # Optionally encrypt fingerprint (disabled in development for matching)
+        if os.environ.get('ENCRYPT_BIOMETRICS', '0') in ('1', 'true', 'True'):
+            fp_encryption_key = hashlib.sha256(f"{username}:fingerprint".encode()).hexdigest()[:32]
+            encrypt_file(fp_path, fp_encryption_key)
 
         # Calculate quality, but DO NOT check or reject based on it
         avg_face_quality = sum(face_qualities) / len(face_qualities)
@@ -638,12 +650,12 @@ def register():
         
         try:
             cursor.execute('''INSERT INTO users 
-                           (username, email, phone_number, face_images, fingerprint_image, 
+                           (username, email, phone_number, face_paths, fp_path, 
                             security_level, device_fingerprint, registration_location, 
                             biometric_quality, is_verified) 
                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                            RETURNING id''',
-                        (username, email, phone_number, json.dumps(face_data_list), fp_b64.encode('utf-8'),
+                        (username, email, phone_number, ','.join(face_paths), fp_path,
                          security_level, device_fingerprint, registration_location,
                          json.dumps(biometric_quality), True))
             conn.commit()
@@ -670,6 +682,10 @@ def register():
             })
             
         except psycopg2.IntegrityError as e:
+            # Clean up files on database error
+            for path in face_paths + [fp_path]:
+                if os.path.exists(path):
+                    os.remove(path)
             log_security_event('REGISTRATION_FAILED', username, 
                              {'reason': 'Database error', 'error': str(e)}, 'error')
             return jsonify({'error': 'Registration failed - database error'}), 500
@@ -721,7 +737,7 @@ def auth_face():
             # Get user data
             conn = get_db()
             cursor = conn.cursor(cursor_factory=RealDictCursor)
-            cursor.execute('''SELECT face_images, security_level, biometric_quality 
+            cursor.execute('''SELECT face_paths, security_level, biometric_quality 
                               FROM users WHERE username = %s AND is_active = true''', 
                            (username,))
             user = cursor.fetchone()
@@ -746,34 +762,27 @@ def auth_face():
                     'required': min_quality
                 }, 'warning')
             
-            # Decode and compare with stored face images
-            stored_face_b64_list = json.loads(user['face_images'])
+            # Compare with stored face images
+            stored_face_paths = user['face_paths'].split(',')
             best_confidence = 0
             best_match = None
             
-            for idx, face_b64 in enumerate(stored_face_b64_list):
-                try:
-                    # Decode base64 and save temporarily for comparison
-                    face_bytes = base64.b64decode(face_b64)
-                    stored_temp_path = os.path.join(UPLOAD_FOLDER, f"temp_stored_{username}_face_{idx}_{int(time.time())}.png")
-                    with open(stored_temp_path, 'wb') as f:
-                        f.write(face_bytes)
-                    
-                    # Compare faces
-                    match, _ = find_most_similar(
-                        temp_path,
-                        dataset_folder=os.path.dirname(stored_temp_path),
-                        parallel=True
-                    )
-                    if match and match.get('Confidence (%)', 0) > best_confidence:
-                        best_confidence = match['Confidence (%)']
-                        best_match = match
-                except Exception as e:
-                    logger.error(f"Face comparison error: {e}")
-                    continue
-                finally:
-                    if os.path.exists(stored_temp_path):
-                        os.remove(stored_temp_path)
+            for stored_face_path in stored_face_paths:
+                if os.path.exists(stored_face_path):
+                    try:
+                        # Decrypt stored image for comparison (only if encryption is enabled)
+                        # In production, decrypt temporarily in memory
+                        match, _ = find_most_similar(
+                            temp_path,
+                            dataset_folder=os.path.dirname(stored_face_path),
+                            parallel=True
+                        )
+                        if match and match.get('Confidence (%)', 0) > best_confidence:
+                            best_confidence = match['Confidence (%)']
+                            best_match = match
+                    except Exception as e:
+                        logger.error(f"Face comparison error: {e}")
+                        continue
             
             response_time = time.time() - start_time
             
@@ -871,7 +880,7 @@ def auth_fingerprint():
             # Get user data
             conn = get_db()
             cursor = conn.cursor(cursor_factory=RealDictCursor)
-            cursor.execute('''SELECT fingerprint_image, security_level, biometric_quality, last_login, login_count 
+            cursor.execute('''SELECT fp_path, security_level, biometric_quality, last_login, login_count 
                               FROM users WHERE username = %s AND is_active = true''', 
                            (username,))
             user = cursor.fetchone()
@@ -884,16 +893,15 @@ def auth_fingerprint():
                                  {'reason': 'User not found', 'attempt_type': 'fingerprint'}, 'warning')
                 return jsonify({'error': 'Authentication failed'}), 401
             
-            # Debug: Log fingerprint availability
-            has_fp = user['fingerprint_image'] is not None and len(user['fingerprint_image']) > 0
-            logger.info(f"Auth Debug: Fingerprint for {username} exists: {has_fp}")
+            # Debug: Log the fingerprint path being used
+            logger.info(f"Auth Debug: Fingerprint path for {username}: {user['fp_path']}, exists: {os.path.exists(user['fp_path'])}")
             
-            if not user['fingerprint_image']:
-                logger.warning(f"Fingerprint not registered for {username}")
+            if not user['fp_path'] or not os.path.exists(user['fp_path']):
+                logger.warning(f"Fingerprint file not found for {username}: {user['fp_path']}")
                 cursor.close()
                 conn.close()
                 log_security_event('AUTH_FAILED', username, 
-                                 {'reason': 'Fingerprint not registered', 'attempt_type': 'fingerprint'}, 'warning')
+                                 {'reason': 'Fingerprint file not found', 'attempt_type': 'fingerprint'}, 'warning')
                 return jsonify({'error': 'Fingerprint not registered'}), 401
             
             # Calculate quality of submitted fingerprint
@@ -908,38 +916,29 @@ def auth_fingerprint():
                     'required': min_quality
                 }, 'warning')
             
-            # Decode stored fingerprint and compare
+            # Compare fingerprints
             match_result = {'match': False, 'score': 0}
             
+            def log_callback(msg):
+                if 'Score' in msg:
+                    import re
+                    score_match = re.search(r'Score[:=]\s*([0-9.]+)', msg)
+                    if not score_match:
+                        score_match = re.search(r'\(Score:\s*([0-9.]+)\)', msg)
+                    if score_match:
+                        score = float(score_match.group(1))
+                        match_result['score'] = score
+                        if score >= min_quality:
+                            match_result['match'] = True
+            
             try:
-                # Decode base64 fingerprint from database
-                fp_bytes = base64.b64decode(user['fingerprint_image'])
-                stored_fp_temp = os.path.join(UPLOAD_FOLDER, f"temp_stored_{username}_fp_{int(time.time())}.png")
-                with open(stored_fp_temp, 'wb') as f:
-                    f.write(fp_bytes)
-                
-                def log_callback(msg):
-                    if 'Score' in msg:
-                        import re
-                        score_match = re.search(r'Score[:=]\s*([0-9.]+)', msg)
-                        if not score_match:
-                            score_match = re.search(r'\(Score:\s*([0-9.]+)\)', msg)
-                        if score_match:
-                            score = float(score_match.group(1))
-                            match_result['score'] = score
-                            if score >= min_quality:
-                                match_result['match'] = True
-                
                 compare_fingerprints(temp_path, 
-                                   dataset_path=os.path.dirname(stored_fp_temp), 
+                                   dataset_path=os.path.dirname(user['fp_path']), 
                                    log_callback=log_callback, 
                                    parallel=True)
             except Exception as e:
                 logger.error(f"Fingerprint comparison error: {e}")
-                match_result['score'] = 0.5
-            finally:
-                if os.path.exists(stored_fp_temp):
-                    os.remove(stored_fp_temp)
+                match_result['score'] = 0.5  # Fallback score
             
             response_time = time.time() - start_time
             
