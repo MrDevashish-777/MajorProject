@@ -1,0 +1,25 @@
+{
+    "builds": [
+        {
+            "src": "hardhat.config.js",
+            "use": "@vercel/node"
+        }
+    ],
+    "routes": [
+        {
+            "src": "/(.*)",
+            "dest": "hardhat.config.js",
+            "methods": [
+                "GET",
+                "POST",
+                "PUT",
+                "DELETE",
+                "PATCH",
+                "OPTIONS"
+            ],
+            "headers": {
+                "Access-Control-Allow-Origin": "*"
+            }
+        }
+    ]
+}
