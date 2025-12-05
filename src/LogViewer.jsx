@@ -76,7 +76,6 @@ export default function LogViewer() {
     const apiUrl = import.meta.env.VITE_API_URL;
     
     if (blockchainApi) return blockchainApi;
-    if (apiUrl) return apiUrl + '/api';
     return '/api';
   };
 
