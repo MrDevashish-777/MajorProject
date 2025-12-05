@@ -40,29 +40,44 @@ let contract;
 
 const initializeBlockchain = async () => {
   try {
+    console.log('🔄 Initializing Web3...');
     web3 = new Web3(RPC_URL);
     
     let contractAddress = CONTRACT_ADDRESS;
     let contractAbi = null;
 
+    console.log(`📁 Looking for contract ABI files...`);
+    console.log(`  Path 1: ${CONTRACT_ABI_PATH}`);
+    console.log(`  Path 2: ${CONTRACT_ABI_FALLBACK}`);
+
     if (fs.existsSync(CONTRACT_ABI_PATH)) {
+      console.log(`✓ Found: ${CONTRACT_ABI_PATH}`);
       const deployData = JSON.parse(fs.readFileSync(CONTRACT_ABI_PATH, 'utf8'));
       contractAddress = deployData.address;
       contractAbi = deployData.abi;
+      console.log(`✓ Contract address from deploy file: ${contractAddress}`);
     } else if (fs.existsSync(CONTRACT_ABI_FALLBACK)) {
+      console.log(`✓ Found: ${CONTRACT_ABI_FALLBACK}`);
       contractAbi = JSON.parse(fs.readFileSync(CONTRACT_ABI_FALLBACK, 'utf8'));
     }
 
-    if (!contractAddress || !contractAbi) {
-      throw new Error('Contract address or ABI not found. Ensure BiometricAuditLog_deploy.json or BiometricAuditLog_abi.json exists in webapp/');
+    if (!contractAddress) {
+      throw new Error(`❌ Contract address missing. Set BLOCKCHAIN_CONTRACT_ADDRESS env var. Current: ${CONTRACT_ADDRESS}`);
     }
 
+    if (!contractAbi) {
+      throw new Error('❌ Contract ABI not found. Ensure BiometricAuditLog_deploy.json or BiometricAuditLog_abi.json exists in webapp/');
+    }
+
+    console.log(`✓ Creating contract instance with ABI (${contractAbi.length} methods)`);
     contract = new web3.eth.Contract(contractAbi, contractAddress);
-    console.log('✓ Blockchain connection established');
-    console.log(`  Contract: ${contractAddress}`);
-    console.log(`  RPC: ${RPC_URL}`);
+    
+    console.log('✅ Blockchain connection established');
+    console.log(`  📍 Contract: ${contractAddress}`);
+    console.log(`  🔗 RPC: ${RPC_URL.substring(0, 60)}...`);
   } catch (error) {
-    console.error('✗ Failed to initialize blockchain:', error.message);
+    console.error('❌ Failed to initialize blockchain:', error.message);
+    console.error('Stack:', error.stack);
     process.exit(1);
   }
 };
@@ -83,14 +98,27 @@ app.get('/api/logs', async (req, res) => {
     const perPage = parseInt(req.query.per_page) || 10;
 
     if (!contract) {
-      return res.status(503).json({ error: 'Blockchain not initialized' });
+      console.error('❌ Contract not initialized');
+      return res.status(503).json({ 
+        error: 'Blockchain not initialized',
+        details: {
+          contractAddress: CONTRACT_ADDRESS,
+          rpcUrl: RPC_URL.substring(0, 50) + '...'
+        }
+      });
     }
 
+    console.log(`📊 Fetching logs: page=${page}, perPage=${perPage}`);
+    
     const totalLogs = await contract.methods.totalLogs().call();
-    const totalPages = Math.ceil(totalLogs / perPage);
+    console.log(`✓ Total logs: ${totalLogs}`);
+    
+    const totalPages = Math.ceil(parseInt(totalLogs) / perPage);
 
-    const startIndex = Math.max(0, totalLogs - page * perPage);
-    const endIndex = Math.max(0, totalLogs - (page - 1) * perPage);
+    const startIndex = Math.max(0, parseInt(totalLogs) - page * perPage);
+    const endIndex = Math.max(0, parseInt(totalLogs) - (page - 1) * perPage);
+
+    console.log(`🔄 Fetching entries from ${startIndex} to ${endIndex}`);
 
     const logs = [];
     for (let i = startIndex; i < endIndex; i++) {
@@ -106,16 +134,23 @@ app.get('/api/logs', async (req, res) => {
 
     logs.reverse();
 
+    console.log(`✅ Successfully fetched ${logs.length} logs`);
+
     res.json({
       logs,
       page,
       per_page: perPage,
-      total: totalLogs,
+      total: parseInt(totalLogs),
       pages: totalPages
     });
   } catch (error) {
-    console.error('Error fetching logs:', error);
-    res.status(500).json({ error: error.message });
+    console.error('❌ Error fetching logs:', error.message);
+    console.error('Stack:', error.stack);
+    res.status(500).json({ 
+      error: error.message,
+      type: error.constructor.name,
+      details: error.stack
+    });
   }
 });
 
@@ -159,7 +194,32 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
     blockchain: contract ? 'connected' : 'disconnected',
-    rpc: RPC_URL,
+    rpc: RPC_URL.substring(0, 60) + '...',
+    timestamp: new Date().toISOString()
+  });
+});
+
+app.get('/api/debug', (req, res) => {
+  res.json({
+    status: contract ? 'initialized' : 'not_initialized',
+    environment: {
+      NODE_ENV: process.env.NODE_ENV,
+      PORT: PORT,
+      CONTRACT_ADDRESS_ENV: process.env.BLOCKCHAIN_CONTRACT_ADDRESS,
+      CONTRACT_ADDRESS_LOADED: CONTRACT_ADDRESS,
+      RPC_URL_LOADED: RPC_URL.substring(0, 80) + '...',
+      FRONTEND_URL: process.env.FRONTEND_URL,
+      FILES: {
+        deployJsonExists: fs.existsSync(CONTRACT_ABI_PATH),
+        abiJsonExists: fs.existsSync(CONTRACT_ABI_FALLBACK),
+        deployJsonPath: CONTRACT_ABI_PATH,
+        abiJsonPath: CONTRACT_ABI_FALLBACK
+      }
+    },
+    contract: contract ? {
+      address: CONTRACT_ADDRESS,
+      methodsCount: contract.methods ? Object.keys(contract.methods).length : 0
+    } : null,
     timestamp: new Date().toISOString()
   });
 });
