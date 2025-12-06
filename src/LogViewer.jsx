@@ -71,16 +71,7 @@ export default function LogViewer() {
   const [copied, setCopied] = useState(false);
   const [copiedField, setCopiedField] = useState(null);
 
-  const getApiUrl = () => {
-    const blockchainApi = import.meta.env.VITE_BLOCKCHAIN_API;
-    const apiUrl = import.meta.env.VITE_API_URL;
-    
-    if (blockchainApi) return blockchainApi;
-    if (apiUrl) return apiUrl + '/api';
-    return '/api';
-  };
-
-  const apiBaseUrl = getApiUrl();
+  const apiBaseUrl = import.meta.env.VITE_BLOCKCHAIN_API || '/api';
 
   useEffect(() => {
     fetchLogs();
